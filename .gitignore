@@ -1,0 +1,92 @@
+import customtkinter as ctk # type: ignore
+import requests
+import pytz # type: ignore
+import speedtest # type: ignore
+import threading
+from datetime import datetime
+
+# Function to get IP & Location info
+def get_ip_info():
+    try:
+        response = requests.get("http://ip-api.com/json/", timeout=5)
+        data = response.json()
+
+        ip_address = data.get("query", "Unknown")
+        country = data.get("country", "Unknown")
+        region = data.get("regionName", "Unknown")
+        city = data.get("city", "Unknown")
+        route = data.get("isp", "Unknown")  # ISP or Route
+        timezone = data.get("timezone", "UTC")
+
+        # Get current time based on timezone (12-hour format with AM/PM)
+        try:
+            local_time = datetime.now(pytz.timezone(timezone)).strftime("%I:%M:%S %p")
+        except:
+            local_time = "Unknown Time"
+
+        result_label.configure(
+            text=f"🕒 {local_time} ({timezone})\n🌍 IP: {ip_address}\n🏳 Country: {country}\n🏙 City: {city}\n🌎 Region: {region}\n🚶 Route: {route}"
+        )
+    except:
+        result_label.configure(text="⚠ Unable to fetch data. Retrying...")
+
+    # Auto refresh every 2 seconds (2000ms)
+    root.after(2000, get_ip_info)
+
+# Function to run Speedtest in a separate thread
+def run_speedtest():
+    speed_label.configure(text="⏳ Running speed test...")
+    threading.Thread(target=speedtest_thread, daemon=True).start()
+
+def speedtest_thread():
+    try:
+        st = speedtest.Speedtest()
+        st.get_best_server()
+        download_speed = round(st.download() / 1_000_000, 2)  # Mbps
+        upload_speed = round(st.upload() / 1_000_000, 2)  # Mbps
+        speed_label.configure(text=f"📡 Download: {download_speed} Mbps\n📶 Upload: {upload_speed} Mbps")
+    except:
+        speed_label.configure(text="⚠ Speedtest failed. Try again.")
+
+# Setup the main window
+ctk.set_appearance_mode("light")  # "light" or "dark"
+ctk.set_default_color_theme("green")  # "blue", "dark-blue", "green"
+
+root = ctk.CTk()
+root.title("🌐R-Tool Checker")
+root.geometry("300x330")  # Small compact window
+root.resizable(False, False)
+
+# Frame
+frame = ctk.CTkFrame(root, corner_radius=15)
+frame.pack(pady=10, padx=10, fill="both", expand=True)
+
+# Title Label
+title_label = ctk.CTkLabel(frame, text="📡 Your IP & Speedtest", font=("Arial", 16, "bold"))
+title_label.pack(pady=5)
+
+# Result Label
+result_label = ctk.CTkLabel(frame, text="Fetching...", font=("Arial", 14), wraplength=300)
+result_label.pack(pady=5)
+
+# Refresh Button
+refresh_button = ctk.CTkButton(frame, text="🔄 Refresh", font=("Arial", 12), fg_color="#32a852", hover_color="#279245", command=get_ip_info)
+refresh_button.pack(pady=5)
+
+# Speedtest Label
+speed_label = ctk.CTkLabel(frame, text="📡 Speedtest Not Started", font=("Arial", 14), wraplength=300)
+speed_label.pack(pady=5)
+
+# Speedtest Button
+speedtest_button = ctk.CTkButton(frame, text="🚀 Run Speedtest", font=("Arial", 12), fg_color="#ff6600", hover_color="#cc5500", command=run_speedtest)
+speedtest_button.pack(pady=5)
+
+# Developer Info Label
+dev_label = ctk.CTkLabel(frame, text="Developed by R-Tool 077857878", font=("Arial", 12, "italic"))
+dev_label.pack(pady=5)
+
+# Run function on startup
+get_ip_info()
+
+# Run the app
+root.mainloop()
